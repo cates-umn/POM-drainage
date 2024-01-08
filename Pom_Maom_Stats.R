@@ -21,8 +21,8 @@ str(SOMData)
 #Convert percentages to mass of POM and MAOM
 #does KS mean proportion, not mass?
 # I don't think this number is useful at all
-SOMData$Pom_mass<-SOMData$Pom_percent*10
-SOMData$MAOM_mass<-SOMData$Maom_percent*10
+# SOMData$Pom_mass<-SOMData$Pom_percent*10
+# SOMData$MAOM_mass<-SOMData$Maom_percent*10
 
 # Set variables to factors
 SOMData$Depth.cm <- as.factor(SOMData$Depth.cm)
@@ -33,27 +33,26 @@ SOMData$Section <- as.factor(SOMData$Section)
 
 str(SOMData)
 
-
-#Normality tests
+#Normality tests#####
 #transform POM and MAOM mass data
 # save each transformation as a new column in data frame
-POMstatsum$Pom_percent_transformed <- log(POMstatsum$Pom_percent)
-ggdensity(POMstatsum$Pom_percent)
-ggdensity(POMstatsum$Pom_percent_transformed)
-ggqqplot(POMstatsum$Pom_percent_transformed)
-ggqqplot(POMstatsum$Pom_percent)
+SOMData$Pom_percent_transformed <- log(SOMData$Pom_percent)
+ggdensity(SOMData$Pom_percent)
+ggdensity(SOMData$Pom_percent_transformed)
+ggqqplot(SOMData$Pom_percent_transformed)
+ggqqplot(SOMData$Pom_percent)
 
 ggdensity(POMmassstatsum$Pom_mass)
 POMmassstatsum$Pom_mass_transformed <- log(POMmassstatsum$Pom_mass)
 ggdensity(POMmassstatsum$Pom_mass_transformed)
 
 #none of these transformations are helpful
-#basically those high numbers
-ggdensity(MAOMstatsum$Maom_percent)
-MAOMstatsum$MAOM_percent_transformed <- log10(1/(MAOMstatsum$Maom_percent))
-#sqrt(max(MAOMstatsum$MAOM_mass + 1) - MAOMstatsum$MAOM_mass)
-ggdensity(MAOMstatsum$MAOM_percent_transformed)
-ggqqplot(MAOMstatsum$MAOM_percent)
+#basically those high numbers from 2019 skew everything
+ggdensity(SOMData$Maom_percent)
+SOMData$MAOM_percent_transformed <- log10(1/(SOMData$Maom_percent))
+#sqrt(max(SOMData$MAOM_mass + 1) - SOMData$MAOM_mass)
+ggdensity(SOMData$MAOM_percent_transformed)
+ggqqplot(SOMData$MAOM_percent)
 
 #Filter out two years
 
@@ -74,8 +73,8 @@ str(POMstatsum)
 # repeated measure of point nested in block over time (year)
 POMmodel <- lmer(Pom_percent_transformed ~ Treatment * Year * Depth.cm + 
                    (1|Block/Point) + (Year|Block/Point), 
-                 data = POMstatsum)
-                   #filter(POMstatsum, Year!="2019"))
+                 data = SOMData)
+                   #filter(SOMData, Year!="2019"))
 car::Anova(POMmodel, test = "F", type=3)
 
 cld(emmeans(POMmodel, pairwise ~ Year|Depth.cm), Letters = LETTERS)
@@ -87,7 +86,7 @@ cld(emmeans(POMmodel, pairwise ~ Treatment|Year), Letters = LETTERS)
 
 # Mixed Effects Model - MAOM
 MAOMmodel <- lmer(MAOM_mass_transformed ~ Treatment * Depth.cm * Year + 
-                    (1|Block/Point) + (Year|Block/Point), data = MAOMstatsum)
+                    (1|Block/Point) + (Year|Block/Point), data = SOMData)
 Anova(MAOMmodel, test = "F")
 
 cld(emmeans(MAOMmodel, pairwise ~ Depth.cm), Letters = LETTERS)
@@ -95,7 +94,7 @@ cld(emmeans(MAOMmodel, pairwise ~ Treatment), Letters = LETTERS)
 
 
 
-#calculating mass of TOC/TIC in POM and MAOM####
+#calculating mass of TOC in POM and MAOM####
 
 #steps
 #multiply POM % by POM mass percent to get g POM-OC/g soil
@@ -103,7 +102,7 @@ cld(emmeans(MAOMmodel, pairwise ~ Treatment), Letters = LETTERS)
 #add POM-OC + MAOM OC for recovered OC %
 #and check recovery with bulk OC: reocvered OC/bulk OC
 
-#repeat above for IC
+
 
 
 #multiply POM % by POM mass percent to get g POM-OC/g soil
@@ -118,7 +117,7 @@ SOMData$OC.rec = SOMData$MAOM.OC.gsoil+SOMData$POM.OC.gsoil
 ggdensity(SOMData$OC.rec)
 
 #and check recovery with bulk OC: reocvered OC/bulk OC
-SOMData$OC.rec.percent = SOMData$OC.rec/SOMData$Bulk.TOC.percent
+SOMData$OC.rec.percent = SOMData$OC.rec/(SOMData$Bulk.TOC.percent/100)
 
 ggplot(SOMData,
        aes(y= OC.rec,
@@ -130,21 +129,124 @@ ggplot(SOMData,
   geom_abline(slope=1, intercept =0)
          
 
-cor.test(SOMData$OC.rec.percent, SOMData$Bulk.TOC.percent/100)
-#correlation is not great, though the spread isn't terrible either. 
+cor.test(SOMData$OC.rec, SOMData$Bulk.TOC.percent/100)
+#correlation is pretty good. 
 #I'd say the data at the surface pulls a little higher towards the recovered OC,
 #maybe a little bias towards samples with higher %POM-OC having higher OC.rec
 #that makes sense
 
+
+#calculating mass of TIC in POM and MAOM####
+
+#steps
+#multiply POM % by POM mass percent to get g POM-IC/g soil
+#repeat for MAOM
+#add POM-OC + MAOM IC for recovered OC %
+#and check recovery with bulk IC: reocvered IC/bulk IC
+
+
+#multiply POM % by POM mass percent to get g POM-IC/g soil
+ggdensity(SOMData$Pom.TIC.percent)
+SOMData$POM.IC.gsoil= (SOMData$Pom.TIC.percent/100)*(SOMData$Pom_percent/100)
+ggdensity(SOMData$POM.IC.gsoil)
+SOMData$MAOM.IC.gsoil= (SOMData$Maom.TIC.percent/100)*(SOMData$Maom_percent/100)
+ggdensity(SOMData$MAOM.IC.gsoil)
+
+#add POM-IC + MAOM IC for recovered IC %
+SOMData$IC.rec = SOMData$MAOM.IC.gsoil+SOMData$POM.IC.gsoil
+ggdensity(SOMData$IC.rec)
+
+#and check recovery with bulk OC: reocvered OC/bulk OC
+SOMData$IC.rec.percent = SOMData$IC.rec/(SOMData$Bulk.TIC.percent/100)
+ggdensity(SOMData$IC.rec.percent)
+
+ggplot(SOMData,
+       aes(y= IC.rec,
+           x = Bulk.TIC.percent/100,
+           color = Treatment,
+           shape = Depth.cm,
+           size = Pom.TIC.percent,
+           linetype = interaction(Treatment, Depth.cm)))+
+  geom_point()+
+  geom_smooth(method = "lm")
+  # geom_abline(slope=1, intercept =0)
+
+
+cor.test(SOMData$IC.rec, SOMData$Bulk.TIC.percent/100)
+#here the values trend more distinctly lower, as in, the two fractions
+#add up to less than the bulk soil IC.
+
+#compare recovery of IC and OC
+ggdensity(SOMData$IC.rec.percent)
+ggdensity(SOMData$OC.rec.percent)
+#OC has that long tail compared to IC
+
+sumrec = SOMData%>%
+  group_by(Treatment, Depth.cm, Year)%>%
+  summarize(IC.rec.mean= mean(IC.rec.percent),
+            IC.rec.sd = sd(IC.rec.percent),
+            OC.rec.mean= mean(OC.rec.percent),
+            OC.rec.sd = sd(OC.rec.percent))
+
+
+#look at IC over time and treatment in figs####
+
+ggplot(SOMDatasum, aes(x=Pom_TIC.percent, y=as.factor(Depth.cm), 
+                       group=interaction(Treatment, Year)))+
+  
+  guides(shape=guide_legend(title="Treatment and Year")) + #format legend
+  guides(fill=guide_legend(title="Treatment and Year")) + #format legend
+  
+  guides(shape=guide_legend(title="Treatment and Year")) + #format legend
+  guides(fill=guide_legend(title="Treatment and Year")) + #format legend
+  
+  theme_bw()+
+  geom_errorbar(aes(xmin=Pom_percent-se, xmax=Pom_percent+se), 
+                #for a plot w/ Depth on y-axis,
+                #use xmin and xmax instead of ymin and ymax
+                colour="black", width=.1, position="identity")+
+  #I think this "width" argument removes the horizontal lines at
+  #the end of the error bar- not sure
+  geom_path() + #connects points based on order
+  
+  
+  geom_point(aes(shape=interaction(Treatment, Year), #make the different year categories different shapes
+                 fill = interaction(Treatment, Year)),position="identity", #make the different year categories different colors
+             size=7) + 
+  
+  scale_shape_manual(values=c(21,21,22,22,24,24))+ #manually choses which shapes I wanted
+  scale_fill_manual(values = c( "deepskyblue2",  "darkgoldenrod","deepskyblue2", "darkgoldenrod", "deepskyblue2", "darkgoldenrod"))+ #manually chooses which colors
+  #  scale_x_continuous(breaks = c(0,5,10,15,20,25,30), position = 'top')+
+  # tells the axis not to record all the numbers between the week #top moves axis labels to top of graph
+  scale_linetype_manual(values=c("solid"))+ #manually chooses which line types I wanted
+  
+  labs(y="Depth (cm)", x="POM (% of soil mass)", cex=17) + #change text of axis labels
+  ggtitle("Change in POM After Two Years of Drainage") + #title of plot
+  
+  
+  #you can futz with these themes and see if you like them. 
+  theme(#panel.grid.major = element_blank(), #removes gridlines
+    #panel.grid.minor = element_blank(), #removes gridlines
+    panel.background = element_blank(), #removes gridlines
+    axis.line = element_line(colour = "black"), 
+    axis.text.x = element_text(size=16), #size of x axis text
+    axis.text.y = element_text(size=16), #size of y axis text
+    axis.title = element_text(size= 21), # size of title text
+    legend.title= element_text(size = 15), #size of legend title
+    legend.text = element_text(size = 15), #size of legend text
+    plot.title = element_text(hjust=0.5, size=24)) #size of plot title and centered
+
+
+
 # Summarizing POM and MAOM based on drainage treatment and depth####
 
-POMtreatmentsum <- summarySE(POMstatsum, measurevar = "Pom_percent", groupvars = "Treatment")
+POMtreatmentsum <- summarySE(SOMData, measurevar = "Pom_percent", groupvars = "Treatment")
 
 POMdepthsum <- summarySE(POMstatsum, measurevar = "Pom_percent", groupvars = "Depth.cm")
 
-MAOMtreatmentsum <- summarySE(MAOMstatsum, measurevar = "MAOM_mass", groupvars = "Treatment")
+MAOMtreatmentsum <- summarySE(SOMData, measurevar = "MAOM_mass", groupvars = "Treatment")
 
-MAOMdepthsum <- summarySE(MAOMstatsum, measurevar = "MAOM_mass", groupvars = "Depth.cm")
+MAOMdepthsum <- summarySE(SOMData, measurevar = "MAOM_mass", groupvars = "Depth.cm")
 
 
 ##########################################    END    ##################################################
@@ -153,10 +255,10 @@ POMstatsum$Treatment <- as.factor(POMstatsum$Treatment)
 POMstatsum$Block <- as.factor(POMstatsum$Block)
 POMstatsum$Point <- as.factor(POMstatsum$Point)
 
-MAOMstatsum$Year <- as.factor(MAOMstatsum$Year)
-MAOMstatsum$Treatment <- as.factor(MAOMstatsum$Treatment)
-MAOMstatsum$Block <- as.factor(MAOMstatsum$Block)
-MAOMstatsum$Point <- as.factor(MAOMstatsum$Point)
+SOMData$Year <- as.factor(SOMData$Year)
+SOMData$Treatment <- as.factor(SOMData$Treatment)
+SOMData$Block <- as.factor(SOMData$Block)
+SOMData$Point <- as.factor(SOMData$Point)
 
 
 # filter POMstatsum based on depth
@@ -365,21 +467,25 @@ ggplot(SOMDatasum, aes(x=Pom_percent, y=as.factor(Depth.cm), group=interaction(T
 # - averaging analytical replicates together
 #none of the below works on SOMData in 2023 because it doesn't contain analytical reps
 #looks like these are available in the 2022 version of the data.
+#as of fall 2023, these just subset the data
 
-# MAOMstatsum <- summarySE(SOMData, 
-#                          measurevar = "Maom_percent", 
-#                          groupvars = c("Depth.cm", "Year", "Point", 
-#                                  "Treatment", "Block", "Section"))
-# str(MAOMstatsum) 
+MAOMstatsum <- summarySE(SOMData, 
+                         measurevar = "Maom_percent", 
+                         groupvars = c("Depth.cm", "Year", "Point", 
+                                       "Treatment", "Block", "Section"))
+str(MAOMstatsum) 
 
 
 
-# Summary stats for POM - averaging analytical replicates together
-# POMstatsum <- summarySE(SOMData, measurevar="Pom_percent", 
-#                         groupvars = c("Depth.cm", "Year", "Point", 
-#                                       "Treatment", "Section", "Block")) 
-# str(POMstatsum)
+Summary stats for POM - averaging analytical replicates together
+POMstatsum <- summarySE(SOMData, measurevar="Pom_percent", 
+                        groupvars = c("Depth.cm", "Year", "Point", 
+                                      "Treatment", "Section", "Block")) 
+str(POMstatsum)
 
-# POMmassstatsum <- summarySE(SOMData, measurevar="Pom_mass", groupvars = c("Depth.cm", "Year", "Point", 
-# "Treatment", "Section", "Block")) 
-# str(POMmassstatsum)
+POMmassstatsum <- summarySE(SOMData, measurevar="Pom_mass", groupvars = c("Depth.cm", "Year", "Point", 
+                                                                          "Treatment", "Section", "Block")) 
+str(POMmassstatsum)
+
+
+
