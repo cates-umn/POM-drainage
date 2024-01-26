@@ -542,21 +542,106 @@ po.cld.depth = cld(emmeans(ocPOMmodel, pairwise ~ Depth.cm), Letters = LETTERS)
 po.cld.depth$measurement = "log.pom.OC.gsoil"
 emmeans.pom.depth= rbind(emmeans.pom.depth, po.cld.depth)
 
-po.cld.yr.depth = cld(emmeans(ocPOMmodel, pairwise ~ Year|Depth.cm), Letters = LETTERS)
-po.cld.yr.depth$measurement = "log.pom.OC.gsoil"
-emmeans.pom.year.depth= t.cld.yr.depth #for future iterations this should be rbind
+po.cld.trt.yr.depth = cld(emmeans(ocPOMmodel, pairwise ~ Treatment|Year|Depth.cm), Letters = LETTERS)
+po.cld.trt.yr.depth$measurement = "log.pom.OC.gsoil"
+emmeans.pom.trt.year.depth= po.cld.trt.yr.depth #for future iterations this should be rbind
 
-t.cld.trt.depth = cld(emmeans(ocPOMmodelodel, pairwise ~ Treatment|Depth.cm), Letters = LETTERS)
-t.cld.trt.depth$measurement = "log.pom.OC.gsoil"
-emmeans.pom.trt.depth= t.cld.trt.depth #for future iterations this should be rbind
-
+po.cld.trt.depth = cld(emmeans(ocPOMmodel, pairwise ~ Treatment|Depth.cm), Letters = LETTERS)
+po.cld.trt.depth$measurement = "log.pom.OC.gsoil"
+emmeans.pom.trt.depth= rbind(emmeans.pom.trt.depth, po.cld.trt.depth)
 
 #POM-IC-g
 
+#check normality and transformations
+ggqqplot(somdata$POM.IC.gsoil)
+ggqqplot(log(somdata$POM.IC.gsoil))
+
+icPOMmodel <- lmer(log(POM.IC.gsoil) ~ Treatment * Year * Depth.cm + 
+                     (1|Block/Point) + (Year|Block/Point), 
+                   data = somdata)
+#filter(SOMData, Year!="2019"))
+car::Anova(icPOMmodel, test = "F", type=3)
+
+pi.aov.pom= car::Anova(icPOMmodel, test = "F", type=3)
+pi.aov.pom$measurement = "log.pom.IC.gsoil"
+
+aov.pom = rbind(aov.pom,pi.aov.pom)
+
+#sig = nothing
+
 #MAOM-OC-g
 
+#check normality and transformations
+ggqqplot(somdata$MAOM.OC.gsoil)
+ggqqplot(log(somdata$MAOM.OC.gsoil))
+
+ocMAOMmodel <- lmer(log(MAOM.OC.gsoil) ~ Treatment * Year * Depth.cm + 
+                     (1|Block/Point) + (Year|Block/Point), 
+                   data = somdata)
+#filter(SOMData, Year!="2019"))
+car::Anova(ocMAOMmodel, test = "F", type=3)
+
+mo.aov.pom= car::Anova(ocMAOMmodel, test = "F", type=3)
+mo.aov.pom$measurement = "log.maom.OC.gsoil"
+
+aov.pom = rbind(aov.pom, mo.aov.pom)
+
+#sig = depth, yrxdepth
+mo.cld.depth = cld(emmeans(ocMAOMmodel, pairwise ~ Depth.cm), Letters = LETTERS)
+mo.cld.depth$measurement = "log.maom.OC.gsoil"
+emmeans.pom.depth= rbind(emmeans.pom.depth, mo.cld.depth)
+
+mo.cld.yr.depth = cld(emmeans(ocMAOMmodel, pairwise ~ Year|Depth.cm), Letters = LETTERS)
+mo.cld.yr.depth$measurement = "log.maom.OC.gsoil"
+emmeans.pom.year.depth= rbind(emmeans.pom.year.depth, mo.cld.yr.depth)
+
+
 #MAOM-IC-g
+
+##check normality and transformations
+ggqqplot(somdata$MAOM.IC.gsoil)
+ggqqplot(log(somdata$MAOM.IC.gsoil))
+
+icMAOMmodel <- lmer(log(MAOM.IC.gsoil) ~ Treatment * Year * Depth.cm + 
+                      (1|Block/Point) + (Year|Block/Point), 
+                    data = somdata)
+#filter(SOMData, Year!="2019"))
+car::Anova(icMAOMmodel, test = "F", type=3)
+
+mi.aov.pom= car::Anova(icMAOMmodel, test = "F", type=3)
+mi.aov.pom$measurement = "log.maom.IC.gsoil"
+
+aov.pom = rbind(aov.pom, mi.aov.pom)
+
+#sig = depth, yrxdepth
+mi.cld.depth = cld(emmeans(icMAOMmodel, pairwise ~ Depth.cm), Letters = LETTERS)
+mi.cld.depth$measurement = "log.maom.IC.gsoil"
+emmeans.pom.depth= rbind(emmeans.pom.depth, mi.cld.depth)
+
+mi.cld.yr.depth = cld(emmeans(icMAOMmodel, pairwise ~ Year|Depth.cm), Letters = LETTERS)
+mi.cld.yr.depth$measurement = "log.maom.IC.gsoil"
+emmeans.pom.year.depth= rbind(emmeans.pom.year.depth, mo.cld.yr.depth)
 
 #bulk-OC-g
 
 #bulk-IC-g
+
+write.csv(aov.pom,
+          "POM lmer models ANOVA 1.26.24.csv",
+          row.names = FALSE)
+
+write.csv(emmeans.pom.depth,
+          "POM depth CLD 1.26.24.csv",
+          row.names = FALSE)
+
+write.csv(emmeans.pom.trt.depth,
+          "POM trt.depth CLD 1.26.24.csv",
+          row.names = FALSE)
+
+write.csv(emmeans.pom.trt.year.depth,
+          "POM trt.year.depth CLD 1.26.24.csv",
+          row.names = FALSE)
+
+write.csv(emmeans.pom.year.depth,
+          "POM year.depth CLD 1.26.24.csv",
+          row.names = FALSE)
