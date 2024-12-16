@@ -71,10 +71,10 @@ cor.test(SOMData$OC.rec, SOMData$Bulk.TOC.percent/100)
 #calculating mass of TIC in POM and MAOM####
 
 #steps
-#multiply POM % by POM mass percent to get g POM-IC/g soil
+#multiply POM IC % by POM mass percent to get g POM-IC/g soil
 #repeat for MAOM
-#add POM-OC + MAOM IC for recovered OC %
-#and check recovery with bulk IC: reocvered IC/bulk IC
+#add POM-OC + MAOM IC for recovered IC %
+#and check recovery with bulk IC: recovered IC/bulk IC
 
 #multiply POM % by POM mass percent to get g POM-IC/g soil
 ggdensity(SOMData$Pom.TIC.percent)
@@ -87,7 +87,7 @@ ggdensity(SOMData$MAOM.IC.gsoil)
 SOMData$IC.rec = SOMData$MAOM.IC.gsoil+SOMData$POM.IC.gsoil
 ggdensity(SOMData$IC.rec)
 
-#and check recovery with bulk OC: reocvered OC/bulk OC
+#and check recovery with bulk OC: recovered IC/bulk IC
 SOMData$IC.rec.percent = SOMData$IC.rec/(SOMData$Bulk.TIC.percent/100)
 ggdensity(SOMData$IC.rec.percent)
 
@@ -109,15 +109,144 @@ cor.test(SOMData$IC.rec, SOMData$Bulk.TIC.percent/100)
 
 write.csv(SOMData, "SOM Data 1.12.24.csv", row.names = FALSE)
 
-#start here with "full data"####
+#add 2022 bulk dataset####
 
+b22 = read.csv("Field 5_2022_post harvest_SoliTOC.csv", 
+               header =TRUE)
+
+str(b22)
+
+b22 = b22%>%
+  mutate(Depth.number = case_when(Depth== "0-12"~"1",
+                                  Depth== "12-24"~"2",
+                                  Depth== "24-36"~"3"))%>%
+  mutate(across(where(is.character), as.factor),
+         across(where(is.integer), as.factor))
+
+#manually converting names to names in SOMdata columns
+colnames(b22)= c("Count", "Name", "Location", "Depth",   
+"Weight...mg.","Bulk.TOC.400.percent","Bulk.ROC.percent","Bulk.TIC.percent", 
+"Bulk.N.percent", "Bulk.TOC.percent","Bulk.TC.percent","Bulk.CNRatio" , 
+"Depth.number")
+
+b22$Year = as.factor("2022")
+b22$Point = as.factor(b22$Location)
+
+#see if this will merge??
 somdata = read.csv("SOM Data 1.12.24.csv", header = TRUE)
 
-somdata$Depth.cm <- as.factor(somdata$Depth.cm)
-somdata$Block <- as.factor(somdata$Block)
-somdata$Treatment <- as.factor(somdata$Treatment)
-somdata$Year<- as.factor(somdata$Year)
-somdata$Section <- as.factor(somdata$Section)
+somdata= somdata%>%
+  mutate(across(where(is.character), as.factor),
+         across(where(is.integer), as.factor))
+
+somdata2 = merge(somdata, b22, all = TRUE) 
+
+#this is a crappy way to get just the columns wanted, gah
+somdatasum = somdata2 %>%
+  group_by(Year, Point, Depth.number)%>%
+  summarize(across(where(is.numeric), mean, na.rm=TRUE))
+
+somdata3 = merge(somdatasum, somdata[c(1,4:9)])
+
+#do the calculation of recovery of IC and OC
+
+#add POM-OC + MAOM OC for recovered OC %
+somdata$OC.rec = somdata$MAOM.OC.gsoil+somdata$POM.OC.gsoil
+ggdensity(somdata$OC.rec)
+
+#and check recovery with bulk OC: reocvered OC/bulk OC
+somdata$OC.rec.percent = somdata$OC.rec/(somdata$Bulk.TOC.percent/100)
+
+ggplot(somdata,
+       aes(y= OC.rec,
+           x = Bulk.TOC.percent/100,
+           color = Treatment,
+           shape = Depth.cm,
+           size = Pom.TOC.percent))+
+  geom_point()+
+  geom_abline(slope=1, intercept =0)
+
+cor.test(somdata$OC.rec, somdata$Bulk.TOC.percent/100)
+
+#add POM-IC + MAOM IC for recovered IC %
+somdata$IC.rec = somdata$MAOM.IC.gsoil+somdata$POM.IC.gsoil
+ggdensity(somdata$IC.rec)
+#get density of both on one figure
+plot (density(somdata$IC.rec))
+lines(density(somdata$Bulk.TIC.percent/100))
+#weird double hump density plot
+#but this is reflected in both bulk and recovered IC, 
+#so recovered IC is not dreadful?
+#recovered IC follows MAOM.
+#Basically all IC is in MAOM. Okay, 
+#that means that sand is not a factor in this
+ggdensity(somdata$Maom.TIC.percent/100)
+ggdensity(somdata$Pom.TIC.percent)
+
+#and check recovery with bulk IC: reocvered IC/bulk IC
+somdata$IC.rec.percent = somdata$IC.rec/(somdata$Bulk.TIC.percent/100)
+
+ggplot(somdata,
+       aes(y= IC.rec,
+           x = Bulk.TIC.percent/100,
+           color = Treatment,
+           shape = Depth.cm,
+           size = Maom.TIC.percent))+
+  geom_point()+
+  geom_abline(slope=1, intercept =0)
+
+cor.test(somdata$IC.rec, somdata$Bulk.TIC.percent/100)
+
+
+#add column on total IC or OC in each fraction####
+#POM-OC.gsoil/Bulk OC.gsoil = % of total OC in POM
+#or you could do this by bulk soil- will make a large difference for IC
+#repeat for MAOM and IC
+#nothing that POM-IC/bulk IC.gsoil is a ludicrously small number
+
+#POM-IC
+somdata$Pom.IC.perbulkIC= somdata$POM.IC.gsoil/(somdata$Bulk.TIC.percent/100)
+somdata$Pom.IC.perrecIC= somdata$POM.IC.gsoil/somdata$IC.rec
+plot (density(somdata$Pom.IC.perbulkIC))
+lines(density(somdata$Pom.IC.perrecIC))
+
+#MAOM-IC
+somdata$Maom.IC.perbulkIC= somdata$MAOM.IC.gsoil/(somdata$Bulk.TIC.percent/100)
+somdata$Maom.IC.perrecIC= somdata$MAOM.IC.gsoil/somdata$IC.rec
+plot (density(somdata$Maom.IC.perbulkIC))
+lines(density(somdata$Maom.IC.perrecIC))
+
+
+#POM-OC
+somdata$Pom.OC.perbulkOC= somdata$POM.OC.gsoil/(somdata$Bulk.TOC.percent/100)
+somdata$Pom.OC.perrecOC= somdata$POM.OC.gsoil/somdata$OC.rec
+plot (density(somdata$Pom.OC.perbulkOC))
+lines(density(somdata$Pom.OC.perrecOC))
+
+#MAOM-OC
+somdata$Maom.OC.perbulkOC= somdata$MAOM.OC.gsoil/(somdata$Bulk.TOC.percent/100)
+somdata$Maom.OC.perrecOC= somdata$MAOM.OC.gsoil/somdata$OC.rec
+plot (density(somdata$Maom.OC.perbulkOC))
+lines(density(somdata$Maom.OC.perrecOC))
+
+
+#basically doing this over recovered OC spikes the density plot
+# we have more data closer together around a mean
+#it doesn't really change the mean for any of these plots, 
+#except maybe MAOM IC?
+#also the MAOM density plots look weird, like the y-axis 
+#hould include larger numbers to get up to the total 192?
+
+#save new full data
+write.csv(somdata, "SOM Data 12.10.24.csv", row.names = FALSE)
+
+#start here with "full data"####
+
+somdata = read.csv("SOM Data 12.10.24.csv", header = TRUE)
+
+somdata = somdata%>%
+  mutate(across(where(is.character), as.factor),
+         across(where(is.integer), as.factor))
 
 #mass separation figs####
 
@@ -294,10 +423,10 @@ ggplot(bulkICDatasum,
            color = Treatment))+
   theme_bw()+
   geom_errorbar(aes(xmin=Bulk.TIC.percent-se, xmax=Bulk.TIC.percent+se), 
-                colour="black", width=.1, position="identity")+
+                colour="black", width=.1)+
   #I think this "width" argument removes the horizontal lines at
   #the end of the error bar- not sure
-  geom_point(size=7, position = "jitter") +
+  geom_point(size=7) +
   
   #you can futz with these themes and see if you like them. 
   theme(#panel.grid.major = element_blank(), #removes gridlines
@@ -627,21 +756,20 @@ emmeans.pom.year.depth= rbind(emmeans.pom.year.depth, mo.cld.yr.depth)
 #bulk-IC-g
 
 write.csv(aov.pom,
-          "POM lmer models ANOVA 1.26.24.csv",
-          row.names = FALSE)
+          "POM lmer models ANOVA 1.30.24.csv")
 
 write.csv(emmeans.pom.depth,
           "POM depth CLD 1.26.24.csv",
-          row.names = FALSE)
+          row.names =FALSE)
 
 write.csv(emmeans.pom.trt.depth,
           "POM trt.depth CLD 1.26.24.csv",
-          row.names = FALSE)
+          row.names =FALSE)
 
 write.csv(emmeans.pom.trt.year.depth,
           "POM trt.year.depth CLD 1.26.24.csv",
-          row.names = FALSE)
+          row.names =FALSE)
 
 write.csv(emmeans.pom.year.depth,
           "POM year.depth CLD 1.26.24.csv",
-          row.names = FALSE)
+          row.names =FALSE)
