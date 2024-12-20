@@ -202,32 +202,38 @@ cor.test(somdata$IC.rec, somdata$Bulk.TIC.percent/100)
 #POM-OC.gsoil/Bulk OC.gsoil = % of total OC in POM
 #or you could do this by bulk soil- will make a large difference for IC
 #repeat for MAOM and IC
-#nothing that POM-IC/bulk IC.gsoil is a ludicrously small number
+#noting that POM-IC/bulk IC.gsoil is a ludicrously small number
 
 #POM-IC
 somdata$Pom.IC.perbulkIC= somdata$POM.IC.gsoil/(somdata$Bulk.TIC.percent/100)
 somdata$Pom.IC.perrecIC= somdata$POM.IC.gsoil/somdata$IC.rec
+somdata$Pom.IC.perbulkTC= somdata$POM.IC.gsoil/(somdata$Bulk.TC.percent/100)
 plot (density(somdata$Pom.IC.perbulkIC))
 lines(density(somdata$Pom.IC.perrecIC))
+plot(density(somdata$Pom.IC.perbulkTC))
 
-#MAOM-IC
+#MAOM-IC#MAOM-ICPom.IC.perbulkTC
 somdata$Maom.IC.perbulkIC= somdata$MAOM.IC.gsoil/(somdata$Bulk.TIC.percent/100)
 somdata$Maom.IC.perrecIC= somdata$MAOM.IC.gsoil/somdata$IC.rec
+somdata$Maom.IC.perbulkTC= somdata$MAOM.IC.gsoil/(somdata$Bulk.TC.percent/100)
 plot (density(somdata$Maom.IC.perbulkIC))
 lines(density(somdata$Maom.IC.perrecIC))
-
+plot(density(somdata$Maom.IC.perbulkTC))
 
 #POM-OC
 somdata$Pom.OC.perbulkOC= somdata$POM.OC.gsoil/(somdata$Bulk.TOC.percent/100)
 somdata$Pom.OC.perrecOC= somdata$POM.OC.gsoil/somdata$OC.rec
+somdata$Pom.OC.perbulkTC= somdata$POM.OC.gsoil/(somdata$Bulk.TC.percent/100)
 plot (density(somdata$Pom.OC.perbulkOC))
 lines(density(somdata$Pom.OC.perrecOC))
 
 #MAOM-OC
 somdata$Maom.OC.perbulkOC= somdata$MAOM.OC.gsoil/(somdata$Bulk.TOC.percent/100)
 somdata$Maom.OC.perrecOC= somdata$MAOM.OC.gsoil/somdata$OC.rec
+somdata$Maom.OC.perbulkTC= somdata$MAOM.OC.gsoil/(somdata$Bulk.TC.percent/100)
 plot (density(somdata$Maom.OC.perbulkOC))
 lines(density(somdata$Maom.OC.perrecOC))
+plot (density(somdata$Maom.OC.perbulkTC))
 
 
 #basically doing this over recovered OC spikes the density plot
@@ -235,20 +241,43 @@ lines(density(somdata$Maom.OC.perrecOC))
 #it doesn't really change the mean for any of these plots, 
 #except maybe MAOM IC?
 #also the MAOM density plots look weird, like the y-axis 
-#hould include larger numbers to get up to the total 192?
+#should include larger numbers to get up to the total 192?
 
 #save new full data
-write.csv(somdata, "SOM Data 12.10.24.csv", row.names = FALSE)
+write.csv(somdata, "SOM Data 12.20.24.csv", row.names = FALSE)
 
 #start here with "full data"####
 
-somdata = read.csv("SOM Data 12.10.24.csv", header = TRUE)
+somdata = read.csv("SOM Data 12.20.24.csv", header = TRUE)
 
 somdata = somdata%>%
   mutate(across(where(is.character), as.factor),
          across(where(is.integer), as.factor))
 
-#mass separation figs####
+
+#pivot data for stacked bar fig####
+
+bulkprop= somdata[c(1,2,40:43,52:55)]%>%
+  pivot_longer(
+    cols= c("Pom.IC.perbulkTC", "Pom.OC.perbulkTC",
+            "Maom.IC.perbulkTC" ,"Maom.OC.perbulkTC" ),
+    names_to= "pool.TC",
+    values_to= "percent.TC"
+    # group_by(c("Block", "Section", "Depth.cm", "Treatment", "Year", "Point"))
+  )
+
+#stacked bar fig
+
+ggplot(bulkprop,
+       aes(fill = pool.TC,
+           y= percent.TC,
+           x = Treatment))+
+  geom_bar(stat = "identity")+
+  facet_grid(Depth.cm~Year)
+
+         
+
+#figs of mass####
 
 Pompersum <- summarySE(somdata, measurevar = "Pom_percent", groupvars = c("Depth.cm", "Year", "Treatment"))
 
@@ -281,12 +310,15 @@ ggplot(PomperDatasum,
     plot.title = element_text(hjust=0.5, size=24)) #size of plot title and centered
 
 
-
-
 #IC figs####
-PomICsum <- summarySE(somdata, measurevar = "Pom.TIC.percent", groupvars = c("Depth.cm", "Year", "Treatment"))
 
-PomICDatasum <- within(PomICsum, Depth.cm<- ordered(Depth.cm, levels = rev(sort(unique(Depth.cm)))))  #flip axis
+#percent
+PomICsum <- summarySE(somdata, measurevar = "Pom.TIC.percent", 
+                      groupvars = c("Depth.cm", "Year", "Treatment"))
+
+PomICDatasum <- within(PomICsum, 
+                       Depth.cm<- ordered(Depth.cm, 
+                                          levels = rev(sort(unique(Depth.cm)))))  #flip axis
 
 #your plot w/ Depth.cm on y-axis will essentially be flipped-
 
@@ -297,6 +329,37 @@ ggplot(PomICDatasum,
            color = Treatment))+
   theme_bw()+
   geom_errorbar(aes(xmin=Pom.TIC.percent-se, xmax=Pom.TIC.percent+se), 
+                colour="black", width=.1, position=position_jitter(seed=100))+
+  #I think this "width" argument removes the horizontal lines at
+  #the end of the error bar- not sure
+  geom_point(size=7, position=position_jitter(seed=100)) +
+  #you can futz with these themes and see if you like them. 
+  theme(#panel.grid.major = element_blank(), #removes gridlines
+    #panel.grid.minor = element_blank(), #removes gridlines
+    panel.background = element_blank(), #removes gridlines
+    axis.line = element_line(colour = "black"), 
+    axis.text.x = element_text(size=16), #size of x axis text
+    axis.text.y = element_text(size=16), #size of y axis text
+    axis.title = element_text(size= 21), # size of title text
+    legend.title= element_text(size = 15), #size of legend title
+    legend.text = element_text(size = 15), #size of legend text
+    plot.title = element_text(hjust=0.5, size=24)) #size of plot title and centered
+
+#pom IC/total IC
+PomICperbulksum <- summarySE(somdata, measurevar = "Pom.IC.perbulkIC", 
+                      groupvars = c("Depth.cm", "Year", "Treatment"))
+
+PomICperbulksum <- within(PomICperbulksum, 
+                       Depth.cm<- ordered(Depth.cm, 
+                                          levels = rev(sort(unique(Depth.cm)))))  #flip axis
+
+ggplot(PomICperbulksum,
+       aes(x=Pom.IC.perbulkIC,
+           y=as.factor(Depth.cm), 
+           shape = Year,
+           color = Treatment))+
+  theme_bw()+
+  geom_errorbar(aes(xmin=Pom.IC.perbulkIC-se, xmax=Pom.IC.perbulkIC+se), 
                 colour="black", width=.1, position=position_jitter(seed=100))+
   #I think this "width" argument removes the horizontal lines at
   #the end of the error bar- not sure
@@ -314,7 +377,7 @@ ggplot(PomICDatasum,
     legend.text = element_text(size = 15), #size of legend text
     plot.title = element_text(hjust=0.5, size=24)) #size of plot title and centered
 
-#pom in g/kg
+#pom IC in g/kg soil
 
 PomICsum.g <- summarySE(somdata, measurevar = "POM.IC.gsoil", groupvars = c("Depth.cm", "Year", "Treatment"))
 
@@ -343,6 +406,7 @@ ggplot(PomICDatasum.g,
     legend.title= element_text(size = 15), #size of legend title
     legend.text = element_text(size = 15), #size of legend text
     plot.title = element_text(hjust=0.5, size=24)) #size of plot title and centered
+
 
 #maom
 
@@ -470,7 +534,39 @@ ggplot(PomOCDatasum,
     legend.text = element_text(size = 15), #size of legend text
     plot.title = element_text(hjust=0.5, size=24)) #size of plot title and centered
 
-#pom in g/kg
+#pom OC/total OC
+PomOCperbulksum <- summarySE(somdata, measurevar = "Pom.OC.perbulkOC", 
+                             groupvars = c("Depth.cm", "Year", "Treatment"))
+
+PomOCperbulksum <- within(PomOCperbulksum, 
+                          Depth.cm<- ordered(Depth.cm, 
+                                             levels = rev(sort(unique(Depth.cm)))))  #flip axis
+
+ggplot(PomOCperbulksum,
+       aes(x=Pom.OC.perbulkOC,
+           y=as.factor(Depth.cm), 
+           shape = Year,
+           color = Treatment))+
+  theme_bw()+
+  geom_errorbar(aes(xmin=Pom.OC.perbulkOC-se, xmax=Pom.OC.perbulkOC+se), 
+                colour="black", width=.1, position=position_jitter(seed=100))+
+  #I think this "width" argument removes the horizontal lines at
+  #the end of the error bar- not sure
+  geom_point(size=7, position=position_jitter(seed=100)) +
+  
+  #you can futz with these themes and see if you like them. 
+  theme(#panel.grid.major = element_blank(), #removes gridlines
+    #panel.grid.minor = element_blank(), #removes gridlines
+    panel.background = element_blank(), #removes gridlines
+    axis.line = element_line(colour = "black"), 
+    axis.text.x = element_text(size=16), #size of x axis text
+    axis.text.y = element_text(size=16), #size of y axis text
+    axis.title = element_text(size= 21), # size of title text
+    legend.title= element_text(size = 15), #size of legend title
+    legend.text = element_text(size = 15), #size of legend text
+    plot.title = element_text(hjust=0.5, size=24)) #size of plot title and centered
+
+#pom in gC/kg soil
 
 PomOCsum.g <- summarySE(SOMData, measurevar = "POM.OC.gsoil", groupvars = c("Depth.cm", "Year", "Treatment"))
 
@@ -649,7 +745,37 @@ t.cld.trt.depth$measurement = "log.pom.percent"
 emmeans.pom.trt.depth= t.cld.trt.depth #for future iterations this should be rbind
 
 
-#POM-OC-g
+#POM-OC/total-OC
+#check normality and transformations
+ggqqplot(somdata$Pom.OC.perbulkOC)
+ggqqplot(log(somdata$Pom.OC.perbulkOC))
+
+ocPOMmodel <- lmer(log(POM.OC.gsoil) ~ Treatment * Year * Depth.cm + 
+                     (1|Block/Point) + (Year|Block/Point), 
+                   data = somdata)
+#filter(SOMData, Year!="2019"))
+car::Anova(ocPOMmodel, test = "F", type=3)
+
+po.aov.pom= car::Anova(ocPOMmodel, test = "F", type=3)
+po.aov.pom$measurement = "log.pom.OC.gsoil"
+
+aov.pom = rbind(aov.pom,po.aov.pom)
+
+#sig = depth, trtxdepth, trtxyrxdepth
+po.cld.depth = cld(emmeans(ocPOMmodel, pairwise ~ Depth.cm), Letters = LETTERS)
+po.cld.depth$measurement = "log.pom.OC.gsoil"
+emmeans.pom.depth= rbind(emmeans.pom.depth, po.cld.depth)
+
+po.cld.trt.yr.depth = cld(emmeans(ocPOMmodel, pairwise ~ Treatment|Year|Depth.cm), Letters = LETTERS)
+po.cld.trt.yr.depth$measurement = "log.pom.OC.gsoil"
+emmeans.pom.trt.year.depth= po.cld.trt.yr.depth #for future iterations this should be rbind
+
+po.cld.trt.depth = cld(emmeans(ocPOMmodel, pairwise ~ Treatment|Depth.cm), Letters = LETTERS)
+po.cld.trt.depth$measurement = "log.pom.OC.gsoil"
+emmeans.pom.trt.depth= rbind(emmeans.pom.trt.depth, po.cld.trt.depth)
+
+
+#POM-OC-g-SOIL
 
 #check normality and transformations
 ggqqplot(somdata$POM.OC.gsoil)
