@@ -275,6 +275,8 @@ ggplot(bulkprop,
   geom_bar(stat = "identity")+
   facet_grid(Depth.cm~Year)
 
+write.csv(bulkprop,"proportional data for stacked fig.csv",
+          row.names = FALSE)
          
 
 #figs of mass####
